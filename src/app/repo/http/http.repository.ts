@@ -68,15 +68,24 @@ export class HttpRepository<T extends { id?: string }> implements RepositoryPto<
       body: body ? JSON.stringify(body) : undefined
     });
 
+    const raw = await response.text();
+
     if (!response.ok) {
-      throw new Error(`${method} ${url} failed with ${response.status}`);
+      let backendMessage = '';
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw) as { message?: string; error?: string };
+          backendMessage = parsed.message ?? parsed.error ?? '';
+        } catch {
+          backendMessage = raw;
+        }
+      }
+      throw new Error(backendMessage || `${method} ${url} failed with ${response.status}`);
     }
 
     if (response.status === 204) {
       return {} as R;
     }
-
-    const raw = await response.text();
 
     if (!raw) {
       return {} as R;

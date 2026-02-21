@@ -45,6 +45,14 @@ export class AdminPageComponent implements OnInit, OnDestroy {
   statuses: ShipmentStatus[] = [];
   shipments: Shipment[] = [];
   selectedStatusByShipment: Record<string, string> = {};
+  isTransportStatusModalOpen = false;
+  transportStatusModal = {
+    transportId: '',
+    transportLabel: '',
+    transportStatus: 'AVAILABLE' as 'AVAILABLE' | 'IN_TRANSIT' | 'MAINTENANCE' | 'OUT_OF_SERVICE',
+    location: '',
+    reason: ''
+  };
 
   newTransportista = { userName: '', userEmail: '', userPassword: '' };
 
@@ -252,6 +260,40 @@ export class AdminPageComponent implements OnInit, OnDestroy {
     } catch (error) {
       this.lastError = this.errorText(error);
     }
+  }
+
+  openTransportStatusModal(transport: Transport): void {
+    if (!transport.id) return;
+    this.transportStatusModal = {
+      transportId: transport.id,
+      transportLabel: `${transport.transportType} · ${transport.transportLicensePlate}`,
+      transportStatus: (transport.transportStatus as 'AVAILABLE' | 'IN_TRANSIT' | 'MAINTENANCE' | 'OUT_OF_SERVICE') ?? 'AVAILABLE',
+      location: transport.transportLocation ?? '',
+      reason: ''
+    };
+    this.isTransportStatusModalOpen = true;
+  }
+
+  closeTransportStatusModal(): void {
+    this.isTransportStatusModalOpen = false;
+  }
+
+  async confirmTransportStatusUpdate(): Promise<void> {
+    const transportId = this.transportStatusModal.transportId;
+    if (!transportId) {
+      this.lastError = 'No se puede actualizar: transporte sin id.';
+      return;
+    }
+
+    await this.runMutation(async () => {
+      await this.transportFeature.updateStatus(transportId, {
+        transportStatus: this.transportStatusModal.transportStatus,
+        location: this.transportStatusModal.location.trim() || undefined,
+        reason: this.transportStatusModal.reason.trim() || undefined
+      });
+      this.closeTransportStatusModal();
+      this.showSuccess('Estado de transporte actualizado.');
+    });
   }
 
   async changeShipmentStatus(shipmentId: string): Promise<void> {

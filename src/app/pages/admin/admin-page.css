@@ -314,3 +314,97 @@ input::placeholder {
   font-size: 12px;
   min-width: 130px;
 }
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: grid;
+  place-items: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.modal-card {
+  width: min(560px, 100%);
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  padding: 18px 18px 16px;
+}
+
+.modal-card h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+.modal-sub {
+  margin: 0 0 14px;
+  color: #666;
+  font-size: 12px;
+}
+
+.modal-actions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .admin-section {
+    overflow-x: auto;
+  }
+
+  .data-table {
+    min-width: 920px;
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-nav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .nav-tab {
+    flex: 0 0 auto;
+  }
+
+  .form-grid {
+    gap: 12px;
+  }
+
+  .two-cols,
+  .narrow {
+    grid-template-columns: 1fr;
+    max-width: 100%;
+  }
+
+  .form-action {
+    width: 100%;
+  }
+
+  .btn-primary {
+    width: 100%;
+  }
+
+  .td-action {
+    white-space: nowrap;
+  }
+
+  .btn-ghost-sm,
+  .btn-danger {
+    margin-top: 4px;
+  }
+
+  .modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .modal-actions .btn-primary,
+  .modal-actions .btn-ghost-sm {
+    width: 100%;
+  }
+}

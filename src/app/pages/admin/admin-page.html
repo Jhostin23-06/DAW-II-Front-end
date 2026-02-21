@@ -137,7 +137,7 @@
           <th>Tipo</th>
           <th>Placa</th>
           <th>Chofer</th>
-          <th>Ubicación</th>
+          <th>Ubicacion</th>
           <th>Capacidad</th>
           <th>Estado</th>
           <th>Asignado a</th>
@@ -154,6 +154,8 @@
           <td><span class="badge">{{ transport.transportStatus }}</span></td>
           <td>{{ userNameById(transport.transportUserId) }}</td>
           <td class="td-action">
+            <button class="btn-ghost-sm" *ngIf="transport.id" (click)="openTransportStatusModal(transport)"
+              [disabled]="isLoading">Actualizar estado</button>
             <button class="btn-danger" *ngIf="transport.id" (click)="deleteTransport(transport.id)"
               [disabled]="isLoading">Eliminar</button>
           </td>
@@ -493,9 +495,38 @@
     </table>
   </section>
 
+
+  <div class="modal-backdrop" *ngIf="isTransportStatusModalOpen">
+    <div class="modal-card">
+      <h3>Actualizar estado del transporte</h3>
+      <p class="modal-sub">{{ transportStatusModal.transportLabel }}</p>
+
+      <div class="field">
+        <label for="modalTransportStatus">Estado</label>
+        <select id="modalTransportStatus" [(ngModel)]="transportStatusModal.transportStatus">
+          <option value="AVAILABLE">AVAILABLE</option>
+          <option value="IN_TRANSIT">IN_TRANSIT</option>
+          <option value="MAINTENANCE">MAINTENANCE</option>
+          <option value="OUT_OF_SERVICE">OUT_OF_SERVICE</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="modalTransportLocation">Ubicacion</label>
+        <input id="modalTransportLocation" [(ngModel)]="transportStatusModal.location" placeholder="Ej: Lima" />
+      </div>
+
+      <div class="field">
+        <label for="modalTransportReason">Motivo</label>
+        <input id="modalTransportReason" [(ngModel)]="transportStatusModal.reason" placeholder="Ej: Salida de almacen" />
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-ghost-sm" (click)="closeTransportStatusModal()" [disabled]="isLoading">Cancelar</button>
+        <button class="btn-primary" (click)="confirmTransportStatusUpdate()" [disabled]="isLoading">Guardar</button>
+      </div>
+    </div>
+  </div>
+
 </div>
-
-
-
-
 

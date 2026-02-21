@@ -8,4 +8,6 @@ export interface Transport {
   transportDriver: string;
   transportLicensePlate: string;
   transportCompany: string;
+  active?: boolean;
+  available?: boolean;
 }

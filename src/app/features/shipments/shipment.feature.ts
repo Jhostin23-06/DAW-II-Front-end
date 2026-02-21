@@ -96,6 +96,10 @@ export class ShipmentFeature {
     this.refresh$.next();
   }
 
+  refresh(): void {
+    this.notifyRefresh();
+  }
+
   private toNumericId(value: string, fieldName: string): number {
     const normalized = String(value ?? '').trim();
     if (!/^\d+$/.test(normalized)) {

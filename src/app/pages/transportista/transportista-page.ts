@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Subscription } from 'rxjs';
+import { interval, Subscription } from 'rxjs';
 import { ShipmentFeature } from '../../features/shipments/shipment.feature';
 import { Shipment } from '../../features/shipments/shipment.model';
 import { StatusFeature } from '../../features/statuses/status.feature';
@@ -22,9 +22,18 @@ export class TransportistaPageComponent implements OnChanges, OnDestroy, OnInit 
   @Input({ required: true }) currentUser: User | null = null;
 
   transports: Transport[] = [];
+  private allAssignedShipments: Shipment[] = [];
   assignedShipments: Shipment[] = [];
   statuses: ShipmentStatus[] = [];
   selectedStatusByShipment: Record<string, string> = {};
+  isTransportStatusModalOpen = false;
+  transportStatusModal = {
+    transportId: '',
+    transportLabel: '',
+    transportStatus: 'AVAILABLE' as 'AVAILABLE' | 'IN_TRANSIT',
+    location: '',
+    reason: ''
+  };
 
   lastError = '';
   lastSuccess = '';
@@ -118,14 +127,25 @@ export class TransportistaPageComponent implements OnChanges, OnDestroy, OnInit 
     this.dynamicSubscriptions.add(
       this.transportFeature.watchAssignedToUser(userId).subscribe((rows) => {
         const currentUserId = String(userId);
-        this.transports = rows.filter((row) => String(row.transportUserId ?? '') === currentUserId);
+        this.transports = rows.filter(
+          (row) => String(row.transportUserId ?? '') === currentUserId && row.active === true
+        );
+        this.rebuildAssignedShipments();
       })
     );
 
     this.dynamicSubscriptions.add(
       this.shipmentFeature.watchByUser(userId).subscribe((rows) => {
-        this.assignedShipments = rows;
-        this.syncSelectedStatusMap();
+        this.allAssignedShipments = rows;
+        this.rebuildAssignedShipments();
+      })
+    );
+
+    // Keep transporter dashboard in sync across different sessions/devices.
+    this.dynamicSubscriptions.add(
+      interval(5000).subscribe(() => {
+        this.transportFeature.refresh();
+        this.shipmentFeature.refresh();
       })
     );
   }
@@ -138,5 +158,58 @@ export class TransportistaPageComponent implements OnChanges, OnDestroy, OnInit 
       }
     });
     this.selectedStatusByShipment = next;
+  }
+
+  private rebuildAssignedShipments(): void {
+    const activeTransportIds = new Set(
+      this.transports.map((row) => String(row.id ?? '')).filter((row) => !!row)
+    );
+    this.assignedShipments = this.allAssignedShipments.filter((row) =>
+      activeTransportIds.has(String(row.transportId ?? ''))
+    );
+    this.syncSelectedStatusMap();
+  }
+
+  openTransportStatusModal(transport: Transport): void {
+    if (!transport.id) return;
+    this.transportStatusModal = {
+      transportId: transport.id,
+      transportLabel: `${transport.transportType} · ${transport.transportLicensePlate}`,
+      transportStatus: transport.transportStatus === 'IN_TRANSIT' ? 'IN_TRANSIT' : 'AVAILABLE',
+      location: transport.transportLocation ?? '',
+      reason: ''
+    };
+    this.isTransportStatusModalOpen = true;
+  }
+
+  closeTransportStatusModal(): void {
+    this.isTransportStatusModalOpen = false;
+  }
+
+  async confirmOwnTransportStatusUpdate(): Promise<void> {
+    const transportId = this.transportStatusModal.transportId;
+    if (!transportId) {
+      this.lastError = 'No se puede actualizar: transporte sin id.';
+      this.lastSuccess = '';
+      return;
+    }
+
+    this.lastError = '';
+    this.lastSuccess = '';
+    this.isLoading = true;
+
+    try {
+      await this.transportFeature.updateStatus(transportId, {
+        transportStatus: this.transportStatusModal.transportStatus,
+        location: this.transportStatusModal.location.trim() || undefined,
+        reason: this.transportStatusModal.reason.trim() || undefined
+      });
+      this.closeTransportStatusModal();
+      this.showSuccess('Estado de transporte actualizado.');
+    } catch (error) {
+      this.lastError = error instanceof Error ? error.message : 'No se pudo actualizar el estado del transporte.';
+    } finally {
+      this.isLoading = false;
+    }
   }
 }
