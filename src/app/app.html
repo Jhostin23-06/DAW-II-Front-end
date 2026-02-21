@@ -1,0 +1,79 @@
+<!-- Vista: Login -->
+<div class="login-wrap" *ngIf="currentView === 'login'">
+  <div class="login-box">
+
+    <div class="login-brand">
+      <span class="brand-mark">DAW</span>
+      <span class="brand-desc">Gestión de Despachos</span>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="form-grid">
+      <div class="field">
+        <label for="loginEmail">Correo</label>
+        <input id="loginEmail" [(ngModel)]="loginForm.userEmail" placeholder="correo@ejemplo.com" type="email" />
+      </div>
+
+      <div class="field">
+        <label for="loginPassword">Contraseña</label>
+        <div class="input-eye-wrap">
+          <input id="loginPassword" [(ngModel)]="loginForm.userPassword" placeholder="••••••••" [type]="showPassword ? 'text' : 'password'" />
+          <button type="button" class="btn-eye" (click)="showPassword = !showPassword" [title]="showPassword ? 'Ocultar' : 'Mostrar'">
+            <!-- Ojo abierto -->
+            <svg *ngIf="!showPassword" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+            </svg>
+            <!-- Ojo cerrado -->
+            <svg *ngIf="showPassword" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <button class="btn-primary" (click)="login()" [disabled]="isLoading || !loginForm.userEmail || !loginForm.userPassword">
+        <span class="spinner" *ngIf="isLoading"></span>
+        <span>{{ isLoading ? 'Verificando...' : 'Entrar' }}</span>
+      </button>
+    </div>
+
+    <p class="hint">Ingresa con un usuario del backend (ej: admin&#64;daw.com).</p>
+
+    <div class="error-banner" *ngIf="lastError">
+      <span class="error-icon">!</span>
+      <span class="error-text">{{ lastError }}</span>
+      <button class="error-close" (click)="clearError()">&#x2715;</button>
+      <div class="error-progress"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Vista: Autenticado -->
+<div class="app-shell" *ngIf="currentUser && currentView !== 'login'">
+
+  <header class="topbar">
+    <span class="topbar-brand">DAW</span>
+    <div class="topbar-right">
+      <span class="topbar-user">{{ currentUser.userName }}</span>
+      <span class="topbar-sep">·</span>
+      <span class="topbar-role">{{ currentUser.userRole }}</span>
+      <button class="btn-ghost" (click)="logout()">Salir</button>
+    </div>
+  </header>
+
+  <main class="content">
+    <app-admin-page
+      *ngIf="currentUser && currentView === 'admin-maintenance'"
+      [currentUser]="currentUser"
+    ></app-admin-page>
+    <app-transportista-page
+      *ngIf="currentUser && currentView === 'TRANSPORTER'"
+      [currentUser]="currentUser"
+    ></app-transportista-page>
+  </main>
+
+</div>
+
+<!-- Modal de confirmación global -->
+<app-confirm-modal></app-confirm-modal>
