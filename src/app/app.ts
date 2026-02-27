@@ -1,11 +1,13 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Subscription } from 'rxjs';
 import { AdminPageComponent } from './pages/admin/admin-page';
 import { TransportistaPageComponent } from './pages/transportista/transportista-page';
 import { ConfirmModalComponent } from './shared/confirm-modal/confirm-modal.component';
 import { UserFeature } from './features/users/user.feature';
 import { User } from './features/users/user.model';
+import { NotificationFeature } from './features/notifications/notification.feature';
 
 @Component({
   selector: 'app-root',
@@ -15,8 +17,11 @@ import { User } from './features/users/user.model';
   styleUrl: './app.css'
 })
 export class App implements OnInit, OnDestroy {
+  @ViewChild(TransportistaPageComponent) private transportistaPageComponent?: TransportistaPageComponent;
+
   currentUser: User | null = null;
   currentView: 'login' | 'admin-maintenance' | 'TRANSPORTER' = 'login';
+  unreadNotificationsCount = 0;
 
   loginForm = {
     userEmail: '',
@@ -28,19 +33,25 @@ export class App implements OnInit, OnDestroy {
   showPassword = false;
   private authListenerCleanup: (() => void) | null = null;
   private errorTimer: ReturnType<typeof setTimeout> | null = null;
+  private unreadCountStreamSubscription: Subscription | null = null;
 
-  constructor(private readonly userFeature: UserFeature) {}
+  constructor(
+    private readonly userFeature: UserFeature,
+    private readonly notificationFeature: NotificationFeature
+  ) {}
 
   ngOnInit(): void {
     this.authListenerCleanup = this.userFeature.onAuthUserChanged((user) => {
       this.currentUser = user;
       this.redirectByRole();
+      this.syncUnreadNotificationsCounter();
     });
   }
 
   ngOnDestroy(): void {
     this.authListenerCleanup?.();
     if (this.errorTimer) clearTimeout(this.errorTimer);
+    this.unreadCountStreamSubscription?.unsubscribe();
   }
 
   clearError(): void {
@@ -84,6 +95,17 @@ export class App implements OnInit, OnDestroy {
     this.currentView = 'login';
   }
 
+  openNotificationsFromHeader(): void {
+    if (!this.currentUser || this.currentUser.userRole !== 'TRANSPORTER') {
+      return;
+    }
+
+    this.currentView = 'TRANSPORTER';
+    setTimeout(() => {
+      this.transportistaPageComponent?.openNotificationsModal();
+    }, 0);
+  }
+
   private redirectByRole(): void {
     if (!this.currentUser) {
       this.currentView = 'login';
@@ -91,5 +113,52 @@ export class App implements OnInit, OnDestroy {
     }
 
     this.currentView = this.currentUser.userRole === 'ADMIN' ? 'admin-maintenance' : 'TRANSPORTER';
+  }
+
+  private syncUnreadNotificationsCounter(): void {
+    this.unreadCountStreamSubscription?.unsubscribe();
+    this.unreadCountStreamSubscription = null;
+
+    if (!this.currentUser) {
+      this.unreadNotificationsCount = 0;
+      return;
+    }
+
+    if (this.currentUser.userRole !== 'TRANSPORTER') {
+      this.unreadNotificationsCount = 0;
+      return;
+    }
+
+    void this.refreshUnreadNotificationsCount();
+
+    const transportUserId = this.currentUser.id;
+    if (transportUserId) {
+      this.unreadCountStreamSubscription = this.notificationFeature
+        .streamNotifications({ transportUserId })
+        .subscribe(() => {
+          void this.refreshUnreadNotificationsCount();
+        });
+    }
+  }
+
+  private async refreshUnreadNotificationsCount(): Promise<void> {
+    if (!this.currentUser) {
+      this.unreadNotificationsCount = 0;
+      return;
+    }
+
+    if (this.currentUser.userRole !== 'TRANSPORTER') {
+      this.unreadNotificationsCount = 0;
+      return;
+    }
+
+    try {
+      this.unreadNotificationsCount = await this.notificationFeature.unreadCountForUser(
+        this.currentUser.id
+      );
+    } catch {
+      // Keep UI stable if the notifications service is temporarily unavailable.
+      this.unreadNotificationsCount = 0;
+    }
   }
 }

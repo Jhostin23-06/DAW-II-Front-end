@@ -15,6 +15,10 @@ import { Transport } from '../../features/transports/transport.model';
 import { ConfirmModalService } from '../../shared/confirm-modal/confirm-modal.service';
 import { UserFeature } from '../../features/users/user.feature';
 import { User } from '../../features/users/user.model';
+import { AuditFeature } from '../../features/audit/audit.feature';
+import { AuditEvent, AuditPage } from '../../features/audit/audit.model';
+import { NotificationFeature } from '../../features/notifications/notification.feature';
+import { NotificationItem, NotificationPage } from '../../features/notifications/notification.model';
 
 type MaintenanceView =
   | 'TRANSPORTER'
@@ -23,7 +27,9 @@ type MaintenanceView =
   | 'categories'
   | 'statuses'
   | 'shipments'
-  | 'assignments';
+  | 'assignments'
+  | 'audit'
+  | 'notifications';
 
 @Component({
   selector: 'app-admin-page',
@@ -96,6 +102,31 @@ export class AdminPageComponent implements OnInit, OnDestroy {
 
   assignment = { transportId: '', userId: '' };
 
+  auditFilters = {
+    area: 'all' as 'all' | 'ms-clientes' | 'ms-servicios' | 'ms-transportistas' | 'ms-users',
+    from: '',
+    to: ''
+  };
+  auditPage: AuditPage<AuditEvent> = this.emptyAuditPage();
+  selectedAuditEvent: AuditEvent | null = null;
+  selectedAuditEventJson = '';
+  showAuditTechnicalInfo = false;
+  auditError = '';
+  isAuditLoading = false;
+  isAuditDetailLoading = false;
+
+  notificationFilters = {
+    readState: 'all' as 'all' | 'read' | 'unread'
+  };
+  notificationPage: NotificationPage<NotificationItem> = this.emptyNotificationPage();
+  selectedNotification: NotificationItem | null = null;
+  selectedNotificationJson = '';
+  notificationError = '';
+  unreadNotificationsCount = 0;
+  isNotificationLoading = false;
+  isNotificationDetailLoading = false;
+  isMarkingAllNotifications = false;
+
   lastError = '';
   lastSuccess = '';
 
@@ -109,7 +140,9 @@ export class AdminPageComponent implements OnInit, OnDestroy {
     private readonly categoryFeature: CategoryFeature,
     private readonly statusFeature: StatusFeature,
     private readonly shipmentFeature: ShipmentFeature,
-    private readonly confirmSvc: ConfirmModalService
+    private readonly confirmSvc: ConfirmModalService,
+    private readonly auditFeature: AuditFeature,
+    private readonly notificationFeature: NotificationFeature
   ) { }
 
   ngOnInit(): void {
@@ -124,6 +157,8 @@ export class AdminPageComponent implements OnInit, OnDestroy {
         this.syncSelectedStatusMap();
       })
     );
+
+    void this.refreshAuditEvents();
   }
 
   ngOnDestroy(): void {
@@ -266,7 +301,7 @@ export class AdminPageComponent implements OnInit, OnDestroy {
     if (!transport.id) return;
     this.transportStatusModal = {
       transportId: transport.id,
-      transportLabel: `${transport.transportType} · ${transport.transportLicensePlate}`,
+      transportLabel: `${transport.transportType} - ${transport.transportLicensePlate}`,
       transportStatus: (transport.transportStatus as 'AVAILABLE' | 'IN_TRANSIT' | 'MAINTENANCE' | 'OUT_OF_SERVICE') ?? 'AVAILABLE',
       location: transport.transportLocation ?? '',
       reason: ''
@@ -388,13 +423,31 @@ export class AdminPageComponent implements OnInit, OnDestroy {
     if (!transportId) return 'Sin asignar';
     const transport = this.transports.find((row) => String(row.id) === String(transportId));
     if (!transport) return `ID ${transportId}`;
-    return `${transport.transportType} · ${transport.transportLicensePlate}`;
+    return `${transport.transportType} - ${transport.transportLicensePlate}`;
   }
 
   transportistaNameByTransportId(transportId: string): string {
     if (!transportId) return 'Sin asignar';
     const transport = this.transports.find((row) => String(row.id) === String(transportId));
     return this.userNameById(transport?.transportUserId ?? null);
+  }
+
+  transportStatusClass(status: string | null | undefined): string {
+    const value = (status ?? '').toLowerCase();
+    if (value.includes('available')) return 'badge--ok';
+    if (value.includes('in_transit') || value.includes('transit')) return 'badge--info';
+    if (value.includes('maintenance')) return 'badge--warn';
+    if (value.includes('out_of_service')) return 'badge--danger';
+    return 'badge--muted';
+  }
+
+  shipmentStatusClass(status: string): string {
+    const value = (status ?? '').toLowerCase();
+    if (value.includes('entregado') || value.includes('delivered')) return 'badge--ok';
+    if (value.includes('transito') || value.includes('transit')) return 'badge--info';
+    if (value.includes('pendiente') || value.includes('por asignar')) return 'badge--warn';
+    if (value.includes('cancel') || value.includes('devuelto') || value.includes('rechaz')) return 'badge--danger';
+    return 'badge--muted';
   }
 
   userNameById(userId: string | null): string {
@@ -406,10 +459,322 @@ export class AdminPageComponent implements OnInit, OnDestroy {
     if (this.isLoading) return;
     this.clearMessages();
     this.selectedView = view;
+    if (view === 'audit') {
+      void this.refreshAuditEvents(0);
+    }
   }
 
   isView(view: MaintenanceView): boolean {
     return this.selectedView === view;
+  }
+
+  async refreshAuditEvents(page: number = this.auditPage.number): Promise<void> {
+    if (this.isAuditLoading) return;
+    this.auditError = '';
+    this.isAuditLoading = true;
+
+    try {
+      this.auditPage = await this.auditFeature.findEvents({
+        source: this.auditSourceFilterValue(),
+        from: this.toIsoDate(this.auditFilters.from),
+        to: this.toIsoDate(this.auditFilters.to),
+        page,
+        size: this.auditPage.size || 20
+      });
+
+      if (
+        this.selectedAuditEvent &&
+        !this.auditPage.content.some((row) => String(row.id) === String(this.selectedAuditEvent?.id))
+      ) {
+        this.selectedAuditEvent = null;
+        this.selectedAuditEventJson = '';
+        this.showAuditTechnicalInfo = false;
+      }
+    } catch (error) {
+      this.auditError = this.errorText(error);
+      this.auditPage = this.emptyAuditPage();
+    } finally {
+      this.isAuditLoading = false;
+    }
+  }
+
+  async applyAuditFilters(): Promise<void> {
+    await this.refreshAuditEvents(0);
+  }
+
+  async clearAuditFilters(): Promise<void> {
+    this.auditFilters = {
+      area: 'all',
+      from: '',
+      to: ''
+    };
+    await this.refreshAuditEvents(0);
+  }
+
+  async goToPreviousAuditPage(): Promise<void> {
+    if (this.auditPage.first) return;
+    await this.refreshAuditEvents(this.auditPage.number - 1);
+  }
+
+  async goToNextAuditPage(): Promise<void> {
+    if (this.auditPage.last) return;
+    await this.refreshAuditEvents(this.auditPage.number + 1);
+  }
+
+  async viewAuditDetail(event: AuditEvent): Promise<void> {
+    const isSameEventSelected =
+      this.selectedAuditEvent && String(this.selectedAuditEvent.id) === String(event.id);
+
+    if (isSameEventSelected) {
+      this.hideAuditDetail();
+      return;
+    }
+
+    this.selectedAuditEvent = event;
+    this.selectedAuditEventJson = this.prettyJson(event.raw);
+    this.showAuditTechnicalInfo = false;
+    this.auditError = '';
+
+    if (event.id === 'N/A') {
+      return;
+    }
+
+    this.isAuditDetailLoading = true;
+    try {
+      const detail = await this.auditFeature.findById(event.auditId ?? event.id);
+      this.selectedAuditEvent = detail;
+      this.selectedAuditEventJson = this.prettyJson(detail.raw);
+    } catch (error) {
+      this.auditError = this.errorText(error);
+    } finally {
+      this.isAuditDetailLoading = false;
+    }
+  }
+
+  hideAuditDetail(): void {
+    this.selectedAuditEvent = null;
+    this.selectedAuditEventJson = '';
+    this.showAuditTechnicalInfo = false;
+  }
+
+  auditRangeLabel(): string {
+    if (this.auditPage.totalElements === 0) {
+      return '0 eventos';
+    }
+
+    const from = this.auditPage.number * this.auditPage.size + 1;
+    const to = Math.min((this.auditPage.number + 1) * this.auditPage.size, this.auditPage.totalElements);
+    return `${from}-${to} de ${this.auditPage.totalElements}`;
+  }
+
+  auditAreaLabel(event: AuditEvent): string {
+    const source = (event.source ?? '').toLowerCase();
+    if (source.includes('client')) return 'Clientes';
+    if (source.includes('servicio') || source.includes('shipment')) return 'Servicios';
+    if (source.includes('transport')) return 'Transportes';
+    if (source.includes('user')) return 'Usuarios';
+    return 'General';
+  }
+
+  auditActivityLabel(event: AuditEvent): string {
+    const text = this.auditEventText(event);
+    if (text.includes('create') || text.includes('created')) return 'Registro creado';
+    if (text.includes('assign') || text.includes('assigned')) return 'Asignacion realizada';
+    if (text.includes('status') && (text.includes('change') || text.includes('update'))) return 'Estado actualizado';
+    if (text.includes('update') || text.includes('changed')) return 'Informacion actualizada';
+    if (text.includes('delete') || text.includes('remove') || text.includes('cancel')) return 'Registro eliminado';
+    return 'Actividad del sistema';
+  }
+
+  auditDescription(event: AuditEvent): string {
+    const payload = event.payload;
+    const companyName = this.readPayloadField(payload, ['companyName']);
+    if (companyName) return `Empresa: ${companyName}`;
+
+    const userName = this.readPayloadField(payload, ['userName']);
+    if (userName) return `Usuario: ${userName}`;
+
+    const orderNumber = this.readPayloadField(payload, ['orderNumber']);
+    if (orderNumber) return `Envio ${orderNumber}`;
+
+    const transportPlate = this.readPayloadField(payload, ['transportLicensePlate']);
+    if (transportPlate) return `Transporte placa ${transportPlate}`;
+
+    const message = this.readPayloadField(payload, ['description', 'message']);
+    if (message) return message;
+
+    if (event.correlationId && event.correlationId !== 'N/A') {
+      return `Referencia ${event.correlationId}`;
+    }
+
+    return this.auditActivityLabel(event);
+  }
+
+  auditStatusLabel(event: AuditEvent): string {
+    return this.isAuditErrorEvent(event) ? 'Error' : 'Completado';
+  }
+
+  auditStatusClass(event: AuditEvent): string {
+    return this.isAuditErrorEvent(event) ? 'badge--danger' : 'badge--ok';
+  }
+
+  toggleAuditTechnicalInfo(): void {
+    this.showAuditTechnicalInfo = !this.showAuditTechnicalInfo;
+  }
+
+  async refreshNotificationUnreadCount(): Promise<void> {
+    try {
+      this.unreadNotificationsCount = await this.notificationFeature.unreadCount();
+    } catch (error) {
+      this.notificationError = this.errorText(error);
+    }
+  }
+
+  async refreshNotifications(page: number = this.notificationPage.number): Promise<void> {
+    if (this.isNotificationLoading) return;
+    this.notificationError = '';
+    this.isNotificationLoading = true;
+
+    try {
+      this.notificationPage = await this.notificationFeature.findNotifications({
+        read: this.notificationReadFilterValue(),
+        page,
+        size: this.notificationPage.size || 20
+      });
+
+      if (
+        this.selectedNotification &&
+        !this.notificationPage.content.some(
+          (row) => String(row.id) === String(this.selectedNotification?.id)
+        )
+      ) {
+        this.hideNotificationDetail();
+      }
+
+      await this.refreshNotificationUnreadCount();
+    } catch (error) {
+      this.notificationError = this.errorText(error);
+      this.notificationPage = this.emptyNotificationPage();
+    } finally {
+      this.isNotificationLoading = false;
+    }
+  }
+
+  async applyNotificationFilters(): Promise<void> {
+    await this.refreshNotifications(0);
+  }
+
+  async clearNotificationFilters(): Promise<void> {
+    this.notificationFilters = {
+      readState: 'all'
+    };
+    await this.refreshNotifications(0);
+  }
+
+  async goToPreviousNotificationPage(): Promise<void> {
+    if (this.notificationPage.first) return;
+    await this.refreshNotifications(this.notificationPage.number - 1);
+  }
+
+  async goToNextNotificationPage(): Promise<void> {
+    if (this.notificationPage.last) return;
+    await this.refreshNotifications(this.notificationPage.number + 1);
+  }
+
+  async viewNotificationDetail(notification: NotificationItem): Promise<void> {
+    const isSameNotificationSelected =
+      this.selectedNotification && String(this.selectedNotification.id) === String(notification.id);
+
+    if (isSameNotificationSelected) {
+      this.hideNotificationDetail();
+      return;
+    }
+
+    this.selectedNotification = notification;
+    this.selectedNotificationJson = this.prettyJson(notification.raw);
+    this.notificationError = '';
+
+    if (notification.notificationId === undefined) {
+      return;
+    }
+
+    this.isNotificationDetailLoading = true;
+    try {
+      const detail = await this.notificationFeature.findById(notification.notificationId);
+      this.selectedNotification = detail;
+      this.selectedNotificationJson = this.prettyJson(detail.raw);
+    } catch (error) {
+      this.notificationError = this.errorText(error);
+    } finally {
+      this.isNotificationDetailLoading = false;
+    }
+  }
+
+  hideNotificationDetail(): void {
+    this.selectedNotification = null;
+    this.selectedNotificationJson = '';
+  }
+
+  async markNotificationAsRead(notification: NotificationItem): Promise<void> {
+    if (notification.notificationId === undefined || notification.read) return;
+
+    this.notificationError = '';
+    try {
+      const updated = await this.notificationFeature.markAsRead(notification.notificationId);
+      this.notificationPage = {
+        ...this.notificationPage,
+        content: this.notificationPage.content.map((row) =>
+          row.notificationId === updated.notificationId ? updated : row
+        )
+      };
+
+      if (
+        this.selectedNotification &&
+        this.selectedNotification.notificationId === updated.notificationId
+      ) {
+        this.selectedNotification = updated;
+        this.selectedNotificationJson = this.prettyJson(updated.raw);
+      }
+
+      await this.refreshNotificationUnreadCount();
+    } catch (error) {
+      this.notificationError = this.errorText(error);
+    }
+  }
+
+  async markAllNotificationsAsRead(): Promise<void> {
+    if (this.isMarkingAllNotifications) return;
+    this.notificationError = '';
+    this.isMarkingAllNotifications = true;
+
+    try {
+      const updated = await this.notificationFeature.markAllAsRead();
+      if (updated > 0) {
+        this.showSuccess(`${updated} notificaciones marcadas como leidas.`);
+      }
+      await this.refreshNotifications(this.notificationPage.number);
+    } catch (error) {
+      this.notificationError = this.errorText(error);
+    } finally {
+      this.isMarkingAllNotifications = false;
+    }
+  }
+
+  notificationReadClass(read: boolean): string {
+    return read ? 'badge--ok' : 'badge--warn';
+  }
+
+  notificationRangeLabel(): string {
+    if (this.notificationPage.totalElements === 0) {
+      return '0 notificaciones';
+    }
+
+    const from = this.notificationPage.number * this.notificationPage.size + 1;
+    const to = Math.min(
+      (this.notificationPage.number + 1) * this.notificationPage.size,
+      this.notificationPage.totalElements
+    );
+    return `${from}-${to} de ${this.notificationPage.totalElements}`;
   }
 
   // ── Privados ───────────────────────────────────────────────
@@ -459,7 +824,145 @@ export class AdminPageComponent implements OnInit, OnDestroy {
     this.selectedStatusByShipment = next;
   }
 
+  private emptyAuditPage(): AuditPage<AuditEvent> {
+    return {
+      content: [],
+      totalElements: 0,
+      totalPages: 0,
+      number: 0,
+      size: 20,
+      first: true,
+      last: true,
+      empty: true
+    };
+  }
+
+  private emptyNotificationPage(): NotificationPage<NotificationItem> {
+    return {
+      content: [],
+      totalElements: 0,
+      totalPages: 0,
+      number: 0,
+      size: 20,
+      first: true,
+      last: true,
+      empty: true
+    };
+  }
+
+  private notificationReadFilterValue(): boolean | undefined {
+    if (this.notificationFilters.readState === 'read') return true;
+    if (this.notificationFilters.readState === 'unread') return false;
+    return undefined;
+  }
+
+  private auditSourceFilterValue(): string | undefined {
+    return this.auditFilters.area === 'all' ? undefined : this.auditFilters.area;
+  }
+
+  private auditEventText(event: AuditEvent): string {
+    return `${event.eventType ?? ''} ${event.routingKey ?? ''}`.toLowerCase();
+  }
+
+  private isAuditErrorEvent(event: AuditEvent): boolean {
+    const text = this.auditEventText(event);
+    return text.includes('error') || text.includes('fail') || text.includes('reject');
+  }
+
+  private readPayloadField(payload: unknown, fields: string[]): string | null {
+    if (!payload || typeof payload !== 'object') return null;
+    const payloadMap = payload as Record<string, unknown>;
+
+    for (const field of fields) {
+      const value = payloadMap[field];
+      if (value === undefined || value === null) continue;
+      const normalized = String(value).trim();
+      if (normalized) return normalized;
+    }
+
+    return null;
+  }
+
+  private toIsoDate(value: string): string | undefined {
+    const normalized = value.trim();
+    if (!normalized) return undefined;
+    const parsed = new Date(normalized);
+    if (Number.isNaN(parsed.getTime())) return undefined;
+    return parsed.toISOString();
+  }
+
+  private prettyJson(data: unknown): string {
+    try {
+      return JSON.stringify(data, null, 2);
+    } catch {
+      return String(data ?? '');
+    }
+  }
+
   private errorText(error: unknown): string {
-    return error instanceof Error ? error.message : 'Ocurrio un error.';
+    if (typeof error === 'string') return error;
+    if (error && typeof error === 'object') {
+      const anyError = error as {
+        message?: string;
+        error?: unknown;
+      };
+      const nested = anyError.error as unknown;
+      if (nested) {
+        if (typeof nested === 'string') {
+          try {
+            const parsed = JSON.parse(nested) as { message?: string; error?: string };
+            return this.cleanBackendMessage(parsed.message ?? parsed.error ?? nested);
+          } catch {
+            return this.cleanBackendMessage(nested);
+          }
+        }
+        if (typeof nested === 'object') {
+          const nestedObj = nested as { message?: string; error?: string };
+          if (nestedObj.message) return this.cleanBackendMessage(nestedObj.message);
+          if (nestedObj.error) return this.cleanBackendMessage(nestedObj.error);
+        }
+      }
+      if (anyError.message) return this.cleanBackendMessage(anyError.message);
+    }
+    return 'Ocurrio un error.';
+  }
+
+  private cleanBackendMessage(message: unknown): string {
+    if (typeof message !== 'string') return 'Ocurrio un error.';
+    let text = message.trim();
+    if (text.toLowerCase().startsWith('validation error:')) {
+      text = text.slice('validation error:'.length).trim();
+    }
+    const braceMatch = text.match(/^\{(.+)\}$/);
+    if (braceMatch) {
+      text = braceMatch[1].trim();
+    }
+    const mapping = this.fieldMessageOverrides();
+    if (text.includes('=')) {
+      const [fieldRaw, msgRaw] = text.split('=');
+      const field = fieldRaw.trim();
+      const msg = msgRaw.trim();
+      if (field && mapping[field]) return mapping[field];
+      if (msg) return msg;
+    }
+    if (!text) return 'Ocurrio un error.';
+    return text;
+  }
+
+  private fieldMessageOverrides(): Record<string, string> {
+    return {
+      transportCapacity: 'La capacidad debe ser positiva.',
+      price: 'El precio debe ser positivo.',
+      weight: 'El peso debe ser positivo.',
+      volume: 'El volumen debe ser positivo.',
+      orderNumber: 'El número de orden es obligatorio.',
+      description: 'La descripción es obligatoria.',
+      origin: 'El origen es obligatorio.',
+      destination: 'El destino es obligatorio.',
+      statusId: 'Selecciona un estado válido.',
+      categoryId: 'Selecciona una categoría válida.',
+      clientId: 'Selecciona un cliente válido.',
+      transportId: 'Selecciona un transporte válido.'
+    };
   }
 }

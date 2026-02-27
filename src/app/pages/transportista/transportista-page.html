@@ -1,7 +1,7 @@
 <div class="transportista-shell">
 
   <div class="success-banner" *ngIf="lastSuccess">
-    <span class="banner-icon ok">?</span>
+    <span class="banner-icon ok">OK</span>
     <span>{{ lastSuccess }}</span>
   </div>
   <div class="error-banner" *ngIf="lastError">
@@ -12,7 +12,7 @@
   <section class="tp-section">
     <div class="section-head">
       <h2 class="section-title">Transportes asignados</h2>
-      <p class="section-desc">Vehiculos asociados a tu cuenta.</p>
+      <p class="section-desc">Vehículos asociados a tu cuenta.</p>
     </div>
 
     <table class="data-table">
@@ -21,21 +21,21 @@
           <th>Tipo</th>
           <th>Placa</th>
           <th>Chofer</th>
-          <th>Compania</th>
-          <th>Ubicacion</th>
+          <th>Compañía</th>
+          <th>Ubicación</th>
           <th>Estado</th>
           <th></th>
         </tr>
       </thead>
       <tbody>
         <tr *ngFor="let transport of transports">
-          <td>{{ transport.transportType }}</td>
-          <td>{{ transport.transportLicensePlate }}</td>
-          <td>{{ transport.transportDriver }}</td>
-          <td>{{ transport.transportCompany }}</td>
-          <td>{{ transport.transportLocation }}</td>
-          <td><span class="badge">{{ transport.transportStatus }}</span></td>
-          <td class="td-action">
+          <td data-label="Tipo">{{ transport.transportType }}</td>
+          <td data-label="Placa">{{ transport.transportLicensePlate }}</td>
+          <td data-label="Chofer">{{ transport.transportDriver }}</td>
+          <td data-label="Compañía">{{ transport.transportCompany }}</td>
+          <td data-label="Ubicación">{{ transport.transportLocation }}</td>
+          <td data-label="Estado"><span class="badge" [ngClass]="transportStatusClass(transport.transportStatus)">{{ transport.transportStatus }}</span></td>
+          <td class="td-action" data-label="Acciones">
             <button class="btn-ghost-sm" *ngIf="transport.id" (click)="openTransportStatusModal(transport)" [disabled]="isLoading">Actualizar estado</button>
           </td>
         </tr>
@@ -48,14 +48,14 @@
 
   <section class="tp-section">
     <div class="section-head">
-      <h2 class="section-title">Envios asignados</h2>
-      <p class="section-desc">Actualiza el estado de cada envio a tu cargo.</p>
+      <h2 class="section-title">Envíos asignados</h2>
+      <p class="section-desc">Actualiza el estado de cada envío a tu cargo.</p>
     </div>
 
     <table class="data-table">
       <thead>
         <tr>
-          <th>Descripcion</th>
+          <th>Descripción</th>
           <th>Ruta</th>
           <th>Estado actual</th>
           <th>Nuevo estado</th>
@@ -64,24 +64,108 @@
       </thead>
       <tbody>
         <tr *ngFor="let shipment of assignedShipments">
-          <td>{{ shipment.description }}</td>
-          <td>{{ shipment.origin }} -> {{ shipment.destination }}</td>
-          <td><span class="badge">{{ statusNameById(shipment.status) }}</span></td>
-          <td>
+          <td data-label="Descripción">{{ shipment.description }}</td>
+          <td data-label="Ruta">
+            <div class="route-cell">
+              <span class="route-from">{{ shipment.origin }}</span>
+              <span class="route-arrow">-></span>
+              <span class="route-to">{{ shipment.destination }}</span>
+            </div>
+          </td>
+          <td data-label="Estado actual"><span class="badge" [ngClass]="shipmentStatusClass(statusNameById(shipment.status))">{{ statusNameById(shipment.status) }}</span></td>
+          <td data-label="Nuevo estado">
             <select class="select-inline" [(ngModel)]="selectedStatusByShipment[shipment.id!]">
               <option *ngFor="let status of statuses" [value]="status.id">{{ status.statusName }}</option>
             </select>
           </td>
-          <td class="td-action">
+          <td class="td-action" data-label="Acciones">
             <button class="btn-ghost-sm" (click)="changeStatus(shipment.id!)" [disabled]="isLoading || !shipment.id">Actualizar</button>
           </td>
         </tr>
         <tr *ngIf="assignedShipments.length === 0">
-          <td colspan="5" class="td-empty">Sin envios asignados</td>
+          <td colspan="5" class="td-empty">Sin envíos asignados</td>
         </tr>
       </tbody>
     </table>
   </section>
+
+  <div class="modal-backdrop" *ngIf="isNotificationsModalOpen">
+    <div class="modal-card modal-card--notifications">
+      <div class="modal-head">
+        <div>
+          <h3>Notificaciones</h3>
+          <p class="modal-sub">Avisos de asignaciones y cambios de transporte.</p>
+        </div>
+        <button class="btn-ghost-sm" (click)="closeNotificationsModal()" [disabled]="isNotificationsLoading">Cerrar</button>
+      </div>
+
+      <div class="notification-toolbar">
+        <div class="field field-inline">
+          <label for="tpNotificationFilter">Mostrar</label>
+          <select id="tpNotificationFilter" [(ngModel)]="notificationFilter" (ngModelChange)="onNotificationFilterChange()">
+            <option value="unread">No leidas</option>
+            <option value="all">Todas</option>
+          </select>
+        </div>
+        <div class="btn-group">
+          <button class="btn-ghost-sm" (click)="refreshNotifications()" [disabled]="isNotificationsLoading">
+            Refrescar
+          </button>
+          <span class="notification-count">No leidas: {{ unreadNotificationsCount }}</span>
+        </div>
+      </div>
+
+      <div class="error-banner" *ngIf="notificationError">
+        <span class="banner-icon err">!</span>
+        <span>{{ notificationError }}</span>
+      </div>
+
+      <div class="notification-loading" *ngIf="isNotificationsLoading">
+        <span class="loading-spinner"></span>
+        <span>Cargando notificaciones...</span>
+      </div>
+
+      <div class="notifications-table-wrap" *ngIf="!isNotificationsLoading">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Titulo</th>
+              <th>Mensaje</th>
+              <th>Estado</th>
+              <th>Fecha</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let notification of notifications">
+              <td data-label="Titulo">{{ notification.title || 'Notificacion' }}</td>
+              <td data-label="Mensaje">{{ notification.message || 'Sin detalle' }}</td>
+              <td data-label="Estado">
+                <span class="badge" [ngClass]="notificationReadClass(notification.read)">
+                  {{ notification.read ? 'Leida' : 'No leida' }}
+                </span>
+              </td>
+              <td data-label="Fecha">
+                {{ notification.occurredAt ? (notification.occurredAt | date: 'yyyy-MM-dd HH:mm:ss') : '-' }}
+              </td>
+              <td class="td-action" data-label="Acciones">
+                <button
+                  class="btn-ghost-sm"
+                  (click)="markNotificationAsRead(notification)"
+                  [disabled]="notification.read || isNotificationsLoading"
+                >
+                  Marcar leida
+                </button>
+              </td>
+            </tr>
+            <tr *ngIf="notifications.length === 0">
+              <td colspan="5" class="td-empty">No hay notificaciones disponibles</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 
   <div class="modal-backdrop" *ngIf="isTransportStatusModalOpen">
     <div class="modal-card">
@@ -97,13 +181,13 @@
       </div>
 
       <div class="field">
-        <label for="tpModalTransportLocation">Ubicacion</label>
+        <label for="tpModalTransportLocation">Ubicación</label>
         <input id="tpModalTransportLocation" [(ngModel)]="transportStatusModal.location" placeholder="Ej: Lima" />
       </div>
 
       <div class="field">
         <label for="tpModalTransportReason">Motivo</label>
-        <input id="tpModalTransportReason" [(ngModel)]="transportStatusModal.reason" placeholder="Ej: Salida de almacen" />
+        <input id="tpModalTransportReason" [(ngModel)]="transportStatusModal.reason" placeholder="Ej: Salida de almacén" />
       </div>
 
       <div class="modal-actions">
@@ -114,3 +198,4 @@
   </div>
 
 </div>
+

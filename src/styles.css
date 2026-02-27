@@ -1,8 +1,39 @@
+﻿@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+:root {
+  --ink-strong: #151515;
+  --ink: #262626;
+  --ink-muted: #6f6a60;
+  --ink-faint: #9a9488;
+
+  --surface-0: #f5f1e8;
+  --surface-1: #fbf9f3;
+  --surface-2: #ffffff;
+
+  --border-1: rgba(20, 20, 20, 0.12);
+  --border-2: rgba(20, 20, 20, 0.2);
+
+  --accent: #f0b429;
+  --accent-ink: #1b1b1b;
+
+  --ok: #2f7a4d;
+  --ok-bg: #e8f3ec;
+  --warn: #b77b1e;
+  --warn-bg: #fbf3df;
+  --danger: #b2473d;
+  --danger-bg: #f8e9e7;
+  --info: #2f5f7a;
+  --info-bg: #e7eff4;
+}
+
 * {
   box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  background: #f5f7fb;
+  background: var(--surface-0);
+  color: var(--ink);
+  font-family: 'IBM Plex Sans', 'Segoe UI', Arial, sans-serif;
+  overflow-x: hidden;
 }

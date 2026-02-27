@@ -10,16 +10,33 @@
 
   <!-- Navegación por tabs -->
   <nav class="admin-nav">
-    <button class="nav-tab" [class.active]="isView('TRANSPORTER')"
-      (click)="setView('TRANSPORTER')">Transportistas</button>
-    <button class="nav-tab" [class.active]="isView('transports')" (click)="setView('transports')">Transportes</button>
-    <button class="nav-tab" [class.active]="isView('clients')" (click)="setView('clients')">Clientes</button>
-    <button class="nav-tab" [class.active]="isView('categories')" (click)="setView('categories')">Categorías</button>
-    <button class="nav-tab" [class.active]="isView('statuses')" (click)="setView('statuses')">Estados</button>
-    <button class="nav-tab" [class.active]="isView('shipments')" (click)="setView('shipments')">Envíos</button>
-    <button class="nav-tab" [class.active]="isView('assignments')"
-      (click)="setView('assignments')">Asignaciones</button>
+    <button class="nav-tab" [class.active]="isView('TRANSPORTER')" (click)="setView('TRANSPORTER')">
+      Transportistas <span class="tab-count">{{ transportistas.length }}</span>
+    </button>
+    <button class="nav-tab" [class.active]="isView('transports')" (click)="setView('transports')">
+      Transportes <span class="tab-count">{{ transports.length }}</span>
+    </button>
+    <button class="nav-tab" [class.active]="isView('clients')" (click)="setView('clients')">
+      Clientes <span class="tab-count">{{ clients.length }}</span>
+    </button>
+    <button class="nav-tab" [class.active]="isView('categories')" (click)="setView('categories')">
+      Categorías <span class="tab-count">{{ categories.length }}</span>
+    </button>
+    <button class="nav-tab" [class.active]="isView('statuses')" (click)="setView('statuses')">
+      Estados <span class="tab-count">{{ statuses.length }}</span>
+    </button>
+    <button class="nav-tab" [class.active]="isView('shipments')" (click)="setView('shipments')">
+      Envíos <span class="tab-count">{{ shipments.length }}</span>
+    </button>
+    <button class="nav-tab" [class.active]="isView('assignments')" (click)="setView('assignments')">
+      Asignaciones
+    </button>
+    <button class="nav-tab" [class.active]="isView('audit')" (click)="setView('audit')">
+      Auditoria <span class="tab-count">{{ auditPage.totalElements }}</span>
+    </button>
   </nav>
+
+  <div class="admin-content">
 
   <!-- Mensajes -->
   <div class="success-banner" *ngIf="lastSuccess">
@@ -72,10 +89,10 @@
       </thead>
       <tbody>
         <tr *ngFor="let user of transportistas">
-          <td>{{ user.userName }}</td>
-          <td>{{ user.userEmail }}</td>
-          <td><span class="badge">{{ user.userRole }}</span></td>
-          <td class="td-action">
+          <td data-label="Nombre">{{ user.userName }}</td>
+          <td data-label="Correo">{{ user.userEmail }}</td>
+          <td data-label="Rol"><span class="badge">{{ user.userRole }}</span></td>
+          <td class="td-action" data-label="Acciones">
             <button class="btn-danger" *ngIf="user.id" (click)="deleteTransportista(user.id)"
               [disabled]="isLoading">Eliminar</button>
           </td>
@@ -137,7 +154,7 @@
           <th>Tipo</th>
           <th>Placa</th>
           <th>Chofer</th>
-          <th>Ubicacion</th>
+          <th>Ubicación</th>
           <th>Capacidad</th>
           <th>Estado</th>
           <th>Asignado a</th>
@@ -146,14 +163,14 @@
       </thead>
       <tbody>
         <tr *ngFor="let transport of transports">
-          <td>{{ transport.transportType }}</td>
-          <td>{{ transport.transportLicensePlate }}</td>
-          <td>{{ transport.transportDriver }}</td>
-          <td>{{ transport.transportLocation }}</td>
-          <td>{{ transport.transportCapacity }}</td>
-          <td><span class="badge">{{ transport.transportStatus }}</span></td>
-          <td>{{ userNameById(transport.transportUserId) }}</td>
-          <td class="td-action">
+          <td data-label="Tipo">{{ transport.transportType }}</td>
+          <td data-label="Placa">{{ transport.transportLicensePlate }}</td>
+          <td data-label="Chofer">{{ transport.transportDriver }}</td>
+          <td data-label="Ubicación">{{ transport.transportLocation }}</td>
+          <td data-label="Capacidad">{{ transport.transportCapacity }}</td>
+          <td data-label="Estado"><span class="badge" [ngClass]="transportStatusClass(transport.transportStatus)">{{ transport.transportStatus }}</span></td>
+          <td data-label="Asignado a">{{ userNameById(transport.transportUserId) }}</td>
+          <td class="td-action" data-label="Acciones">
             <button class="btn-ghost-sm" *ngIf="transport.id" (click)="openTransportStatusModal(transport)"
               [disabled]="isLoading">Actualizar estado</button>
             <button class="btn-danger" *ngIf="transport.id" (click)="deleteTransport(transport.id)"
@@ -221,13 +238,13 @@
       </thead>
       <tbody>
         <tr *ngFor="let client of clients">
-          <td>{{ client.companyCode }}</td>
-          <td>{{ client.companyName }}</td>
-          <td>{{ client.address }}</td>
-          <td>{{ client.contactName }}</td>
-          <td>{{ client.email }}</td>
-          <td>{{ client.phone }}</td>
-          <td class="td-action">
+          <td data-label="Código">{{ client.companyCode }}</td>
+          <td data-label="Compañía">{{ client.companyName }}</td>
+          <td data-label="Dirección">{{ client.address }}</td>
+          <td data-label="Contacto">{{ client.contactName }}</td>
+          <td data-label="Correo">{{ client.email }}</td>
+          <td data-label="Teléfono">{{ client.phone }}</td>
+          <td class="td-action" data-label="Acciones">
             <button class="btn-danger" *ngIf="client.id" (click)="deleteClient(client.id)"
               [disabled]="isLoading">Eliminar</button>
           </td>
@@ -267,8 +284,8 @@
       </thead>
       <tbody>
         <tr *ngFor="let category of categories">
-          <td>{{ category.categoryName }}</td>
-          <td class="td-action">
+          <td data-label="Categoría">{{ category.categoryName }}</td>
+          <td class="td-action" data-label="Acciones">
             <button class="btn-danger" *ngIf="category.id" (click)="deleteCategory(category.id)"
               [disabled]="isLoading">Eliminar</button>
           </td>
@@ -308,8 +325,8 @@
       </thead>
       <tbody>
         <tr *ngFor="let status of statuses">
-          <td>{{ status.statusName }}</td>
-          <td class="td-action">
+          <td data-label="Estado">{{ status.statusName }}</td>
+          <td class="td-action" data-label="Acciones">
             <button class="btn-danger" *ngIf="status.id" (click)="deleteStatus(status.id)"
               [disabled]="isLoading">Eliminar</button>
           </td>
@@ -329,6 +346,9 @@
     </div>
 
     <div class="form-grid two-cols">
+      <div class="form-group">
+        <h3 class="group-title">Datos generales</h3>
+      </div>
       <div class="field">
         <label for="shipmentOrderNumber">Nro. de orden</label>
         <input id="shipmentOrderNumber" [(ngModel)]="newShipment.orderNumber" placeholder="Ej: ORD-1001" />
@@ -353,6 +373,7 @@
       <div class="field">
         <label for="shipmentPrice">Precio</label>
         <input id="shipmentPrice" [(ngModel)]="newShipment.price" placeholder="0.00" type="number" />
+        <small class="field-hint">Moneda local</small>
       </div>
       <div class="field">
         <label for="shipmentWeight">Peso (kg)</label>
@@ -361,6 +382,9 @@
       <div class="field">
         <label for="shipmentVolume">Volumen (m³)</label>
         <input id="shipmentVolume" [(ngModel)]="newShipment.volume" placeholder="0.0" type="number" />
+      </div>
+      <div class="form-group">
+        <h3 class="group-title">Cliente y estado</h3>
       </div>
       <div class="field">
         <label for="shipmentClient">Cliente</label>
@@ -383,12 +407,15 @@
           <option *ngFor="let status of statuses" [value]="status.id">{{ status.statusName }}</option>
         </select>
       </div>
+      <div class="form-group">
+        <h3 class="group-title">Transporte</h3>
+      </div>
       <div class="field">
         <label for="shipmentTransport">Transporte</label>
         <select id="shipmentTransport" [(ngModel)]="newShipment.transportId">
           <option value="">Seleccionar...</option>
           <option *ngFor="let transport of transports" [value]="transport.id">
-            {{ transport.transportType }} · {{ transport.transportLicensePlate }}
+            {{ transport.transportType }} - {{ transport.transportLicensePlate }}
           </option>
         </select>
       </div>
@@ -404,7 +431,7 @@
       <thead>
         <tr>
           <th>Orden</th>
-          <th>Descripcion</th>
+          <th>Descripción</th>
           <th>Cliente</th>
           <th>Transporte</th>
           <th>Transportista</th>
@@ -417,20 +444,31 @@
       </thead>
       <tbody>
         <tr *ngFor="let shipment of shipments">
-          <td>{{ shipment.orderNumber }}</td>
-          <td>{{ shipment.description }}</td>
-          <td>{{ clientNameById(shipment.clientId) }}</td>
-          <td>{{ transportLabelById(shipment.transportId) }}</td>
-          <td>{{ transportistaNameByTransportId(shipment.transportId) }}</td>
-          <td>{{ shipment.atDate | date: 'yyyy-MM-dd HH:mm' }}</td>
-          <td>{{ shipment.origin }} -> {{ shipment.destination }}</td>
-          <td><span class="badge">{{ statusNameById(shipment.status) }}</span></td>
-          <td>
+          <td data-label="Orden">{{ shipment.orderNumber }}</td>
+          <td data-label="Descripción">{{ shipment.description }}</td>
+          <td data-label="Cliente">{{ clientNameById(shipment.clientId) }}</td>
+          <td data-label="Transporte">{{ transportLabelById(shipment.transportId) }}</td>
+          <td data-label="Transportista">{{ transportistaNameByTransportId(shipment.transportId) }}</td>
+          <td data-label="Fecha">
+            <div class="date-cell">
+              <span class="date-primary">{{ shipment.atDate | date: 'yyyy-MM-dd' }}</span>
+              <span class="date-secondary">{{ shipment.atDate | date: 'HH:mm' }}</span>
+            </div>
+          </td>
+          <td data-label="Ruta">
+            <div class="route-cell">
+              <span class="route-from">{{ shipment.origin }}</span>
+              <span class="route-arrow">-></span>
+              <span class="route-to">{{ shipment.destination }}</span>
+            </div>
+          </td>
+          <td data-label="Estado actual"><span class="badge" [ngClass]="shipmentStatusClass(statusNameById(shipment.status))">{{ statusNameById(shipment.status) }}</span></td>
+          <td data-label="Cambiar estado">
             <select class="select-inline" [(ngModel)]="selectedStatusByShipment[shipment.id!]">
               <option *ngFor="let status of statuses" [value]="status.id">{{ status.statusName }}</option>
             </select>
           </td>
-          <td class="td-action">
+          <td class="td-action" data-label="Acciones">
             <button class="btn-ghost-sm" (click)="changeShipmentStatus(shipment.id!)" [disabled]="isLoading || !shipment.id">Actualizar</button>
             <button class="btn-danger" *ngIf="shipment.id" (click)="deleteShipment(shipment.id)" [disabled]="isLoading">Eliminar</button>
           </td>
@@ -455,7 +493,7 @@
         <select id="assignmentTransport" [(ngModel)]="assignment.transportId">
           <option value="">Seleccionar transporte...</option>
           <option *ngFor="let transport of transports" [value]="transport.id">
-            {{ transport.transportType }} · {{ transport.transportLicensePlate }}
+            {{ transport.transportType }} - {{ transport.transportLicensePlate }}
           </option>
         </select>
       </div>
@@ -484,9 +522,9 @@
       </thead>
       <tbody>
         <tr *ngFor="let transport of transports">
-          <td>{{ transport.transportType }}</td>
-          <td>{{ transport.transportLicensePlate }}</td>
-          <td>{{ userNameById(transport.transportUserId) }}</td>
+          <td data-label="Tipo">{{ transport.transportType }}</td>
+          <td data-label="Placa">{{ transport.transportLicensePlate }}</td>
+          <td data-label="Transportista asignado">{{ userNameById(transport.transportUserId) }}</td>
         </tr>
         <tr *ngIf="transports.length === 0">
           <td colspan="3" class="td-empty">Sin registros</td>
@@ -495,6 +533,129 @@
     </table>
   </section>
 
+  <!-- Auditoria -->
+  <section class="admin-section" *ngIf="isView('audit')">
+    <div class="section-head">
+      <h2 class="section-title">Auditoria de eventos</h2>
+      <p class="section-desc">Seguimiento de actividades del sistema en lenguaje de negocio.</p>
+    </div>
+
+    <div class="audit-filter-grid">
+      <div class="field">
+        <label for="auditArea">Area</label>
+        <select id="auditArea" [(ngModel)]="auditFilters.area">
+          <option value="all">Todas</option>
+          <option value="ms-clientes">Clientes</option>
+          <option value="ms-servicios">Servicios</option>
+          <option value="ms-transportistas">Transportes</option>
+          <option value="ms-users">Usuarios</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="auditFrom">Desde</label>
+        <input id="auditFrom" [(ngModel)]="auditFilters.from" type="datetime-local" />
+      </div>
+      <div class="field">
+        <label for="auditTo">Hasta</label>
+        <input id="auditTo" [(ngModel)]="auditFilters.to" type="datetime-local" />
+      </div>
+    </div>
+
+    <div class="audit-actions">
+      <button class="btn-primary" (click)="applyAuditFilters()" [disabled]="isAuditLoading">Buscar</button>
+      <button class="btn-ghost-sm" (click)="clearAuditFilters()" [disabled]="isAuditLoading">Limpiar</button>
+      <button class="btn-ghost-sm" (click)="refreshAuditEvents()" [disabled]="isAuditLoading">Refrescar</button>
+      <span class="audit-range">{{ auditRangeLabel() }}</span>
+    </div>
+
+    <div class="error-banner" *ngIf="auditError">
+      <span class="banner-icon err">!</span>
+      <span>{{ auditError }}</span>
+    </div>
+
+    <div class="audit-loading" *ngIf="isAuditLoading">
+      <span class="loading-spinner"></span>
+      <span>Cargando eventos...</span>
+    </div>
+
+    <table class="data-table audit-table" *ngIf="!isAuditLoading">
+      <thead>
+        <tr>
+          <th>Actividad</th>
+          <th>Area</th>
+          <th>Descripcion</th>
+          <th>Estado</th>
+          <th>Fecha</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let event of auditPage.content">
+          <td data-label="Actividad">{{ auditActivityLabel(event) }}</td>
+          <td data-label="Area">
+            <span class="badge badge--info">{{ auditAreaLabel(event) }}</span>
+          </td>
+          <td data-label="Descripcion">{{ auditDescription(event) }}</td>
+          <td data-label="Estado">
+            <span class="badge" [ngClass]="auditStatusClass(event)">{{ auditStatusLabel(event) }}</span>
+          </td>
+          <td data-label="Fecha">{{ event.eventAt ? (event.eventAt | date: 'yyyy-MM-dd HH:mm:ss') : '-' }}</td>
+          <td class="td-action" data-label="Acciones">
+            <button class="btn-ghost-sm" (click)="viewAuditDetail(event)" [disabled]="isAuditDetailLoading">
+              {{ selectedAuditEvent?.id === event.id ? 'Ocultar detalle' : 'Ver detalle' }}
+            </button>
+          </td>
+        </tr>
+        <tr *ngIf="auditPage.content.length === 0">
+          <td colspan="6" class="td-empty">Sin actividades para los filtros aplicados</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="audit-pager" *ngIf="!isAuditLoading">
+      <button class="btn-ghost-sm" (click)="goToPreviousAuditPage()" [disabled]="isAuditLoading || auditPage.first">
+        Anterior
+      </button>
+      <span class="audit-page-label">Pagina {{ auditPage.number + 1 }} de {{ auditPage.totalPages || 1 }}</span>
+      <button class="btn-ghost-sm" (click)="goToNextAuditPage()" [disabled]="isAuditLoading || auditPage.last">
+        Siguiente
+      </button>
+    </div>
+
+    <section class="audit-detail" *ngIf="selectedAuditEvent">
+      <div class="audit-detail-head">
+        <h3>Detalle de actividad</h3>
+        <div class="audit-detail-head-actions">
+          <span class="badge" [ngClass]="auditStatusClass(selectedAuditEvent)">
+            {{ auditStatusLabel(selectedAuditEvent) }}
+          </span>
+          <button class="btn-ghost-sm" (click)="toggleAuditTechnicalInfo()" [disabled]="isAuditDetailLoading">
+            {{ showAuditTechnicalInfo ? 'Ocultar info tecnica' : 'Ver info tecnica' }}
+          </button>
+          <button class="btn-ghost-sm" (click)="hideAuditDetail()" [disabled]="isAuditDetailLoading">
+            Ocultar detalle
+          </button>
+        </div>
+      </div>
+      <div class="audit-detail-meta">
+        <p><strong>Actividad:</strong> {{ auditActivityLabel(selectedAuditEvent) }}</p>
+        <p><strong>Area:</strong> {{ auditAreaLabel(selectedAuditEvent) }}</p>
+        <p><strong>Descripcion:</strong> {{ auditDescription(selectedAuditEvent) }}</p>
+        <p><strong>Fecha:</strong> {{ selectedAuditEvent.eventAt ? (selectedAuditEvent.eventAt | date: 'yyyy-MM-dd HH:mm:ss') : '-' }}</p>
+      </div>
+
+      <div class="audit-detail-meta" *ngIf="showAuditTechnicalInfo">
+        <p><strong>Id evento:</strong> {{ selectedAuditEvent.id }}</p>
+        <p><strong>Source:</strong> {{ selectedAuditEvent.source || '-' }}</p>
+        <p><strong>Event Type:</strong> {{ selectedAuditEvent.eventType || '-' }}</p>
+        <p><strong>Routing Key:</strong> {{ selectedAuditEvent.routingKey || '-' }}</p>
+        <p><strong>Correlation Id:</strong> {{ selectedAuditEvent.correlationId || '-' }}</p>
+      </div>
+      <pre class="audit-json" *ngIf="showAuditTechnicalInfo">{{ selectedAuditEventJson }}</pre>
+    </section>
+  </section>
+
+  </div>
 
   <div class="modal-backdrop" *ngIf="isTransportStatusModalOpen">
     <div class="modal-card">
@@ -512,7 +673,7 @@
       </div>
 
       <div class="field">
-        <label for="modalTransportLocation">Ubicacion</label>
+        <label for="modalTransportLocation">Ubicación</label>
         <input id="modalTransportLocation" [(ngModel)]="transportStatusModal.location" placeholder="Ej: Lima" />
       </div>
 
@@ -529,4 +690,5 @@
   </div>
 
 </div>
+
 
